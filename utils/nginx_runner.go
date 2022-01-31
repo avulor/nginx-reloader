@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -24,15 +25,26 @@ func MakeNginxRunner(changeChan chan bool, nginxCommand []string) NginxRunner {
 }
 
 func (r *NginxRunner) StartNginx() *exec.Cmd {
+	r.checkNginxConfig()
 	r.listenSignals()
 	cmd := exec.Command(r.NginxCommand[0], r.NginxCommand[1:]...)
 	err := cmd.Start()
 	if err != nil {
-		Panicf("couldn't start nginx:\n%v\n", err)
+		Panicf("nginx exited with error:\n%v\n", err)
 	}
 	r.nginxProc = cmd.Process
 	r.forwardSignals()
 	r.reloadOnChange()
+	return cmd
+}
+
+func (r *NginxRunner) checkNginxConfig() *exec.Cmd {
+	cmd := exec.Command("nginx", "-t")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		Panicf("nginx config validation has failed:\n%v\n%v\n", err, string(out))
+	}
+	fmt.Println("nginx config validated successfully")
 	return cmd
 }
 
@@ -65,6 +77,7 @@ func (r *NginxRunner) reloadOnChange() {
 }
 
 func (r *NginxRunner) reloadNginx() {
+	r.checkNginxConfig()
 	Stdoutf("conf directories change detected, sending reload signal to nginx")
 	err := r.nginxProc.Signal(syscall.SIGHUP)
 	if err != nil {
