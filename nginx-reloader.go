@@ -3,7 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
-	"github.com/trpx/nginx-reloader/utils"
+	"github.com/avulor/nginx-reloader/utils"
 	"os"
 	"time"
 )

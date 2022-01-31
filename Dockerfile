@@ -3,7 +3,7 @@ FROM golang:1.12-alpine
 WORKDIR /tmp
 
 RUN apk add git --no-cache \
-    && go get -v github.com/trpx/nginx-reloader
+    && go get -v github.com/avulor/nginx-reloader
 
 
 FROM nginx:1.16-alpine
