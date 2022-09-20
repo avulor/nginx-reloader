@@ -1,4 +1,4 @@
-FROM golang:1.12-alpine
+FROM golang:1.13-alpine
 
 WORKDIR /tmp
 
@@ -6,7 +6,7 @@ RUN apk add git --no-cache \
     && go get -v github.com/avulor/nginx-reloader
 
 
-FROM nginx:1.16-alpine
+FROM nginx:1.23-alpine
 
 COPY --from=0 /go/bin/nginx-reloader /usr/local/bin/
 

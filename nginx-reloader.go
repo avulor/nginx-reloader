@@ -11,12 +11,12 @@ import (
 // CLI
 func main() {
 
-	pollCooldown, watchedDirs, nginxCommand, err := utils.ParseOptions(os.Args)
+	pollCooldown, watchedDirs, logFile, logMaxSize, logPollCooldowns, nginxCommand, err := utils.ParseOptions(os.Args)
 	if err != nil {
 		utils.Fatalf("%v", err)
 	}
 
-	err = StartNginxReloader(pollCooldown, watchedDirs, nginxCommand)
+	err = StartNginxReloader(pollCooldown, watchedDirs, logFile, logMaxSize, logPollCooldowns, nginxCommand)
 
 	if err != nil {
 		utils.Fatalf("%v", err)
@@ -24,7 +24,7 @@ func main() {
 }
 
 // Programmatic API
-func StartNginxReloader(pollCooldown time.Duration, watchedDirs []string, nginxCommand []string) (err error) {
+func StartNginxReloader(pollCooldown time.Duration, watchedDirs []string, logFile string, logMaxSize int64, logPollCooldowns int, nginxCommand []string) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			err = errors.New(fmt.Sprintf("%v", r))
@@ -33,11 +33,11 @@ func StartNginxReloader(pollCooldown time.Duration, watchedDirs []string, nginxC
 
 	validateWatchedDirs(watchedDirs)
 
-	watcher := utils.MakeDirWatcher(watchedDirs, pollCooldown)
+	watcher := utils.MakeConfLogWatcher(watchedDirs, pollCooldown, logFile, logMaxSize, logPollCooldowns)
 
 	watcher.CalcChecksum()
 
-	NginxRunner := utils.MakeNginxRunner(watcher.ChangeChan, nginxCommand)
+	NginxRunner := utils.MakeNginxRunner(watcher.ChangeChan, watcher.LogFullChan, logFile, nginxCommand)
 
 	cmd := NginxRunner.StartNginx()
 

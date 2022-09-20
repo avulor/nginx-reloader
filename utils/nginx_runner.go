@@ -6,19 +6,24 @@ import (
 	"os/exec"
 	"os/signal"
 	"syscall"
+	"time"
 )
 
 type NginxRunner struct {
 	nginxProc    *os.Process
 	signalsChan  chan os.Signal
 	changeChan   chan bool
+	logFullChan  chan bool
+	logFile      string
 	NginxCommand []string
 }
 
-func MakeNginxRunner(changeChan chan bool, nginxCommand []string) NginxRunner {
+func MakeNginxRunner(changeChan chan bool, logFullChan chan bool, logFile string, nginxCommand []string) NginxRunner {
 	nginxRunner := NginxRunner{
 		signalsChan:  make(chan os.Signal),
 		changeChan:   changeChan,
+		logFullChan:  logFullChan,
+		logFile:      logFile,
 		NginxCommand: nginxCommand,
 	}
 	return nginxRunner
@@ -35,6 +40,7 @@ func (r *NginxRunner) StartNginx() *exec.Cmd {
 	r.nginxProc = cmd.Process
 	r.forwardSignals()
 	r.reloadOnChange()
+	r.rotateLogsOnFull()
 	return cmd
 }
 
@@ -76,6 +82,15 @@ func (r *NginxRunner) reloadOnChange() {
 	}()
 }
 
+func (r *NginxRunner) rotateLogsOnFull() {
+	go func() {
+		for {
+			<-r.logFullChan
+			r.rotateLogsNginx()
+		}
+	}()
+}
+
 func (r *NginxRunner) reloadNginx() {
 	r.checkNginxConfig()
 	Stdoutf("conf directories change detected, sending reload signal to nginx")
@@ -84,4 +99,20 @@ func (r *NginxRunner) reloadNginx() {
 		Panicf("couldn't send SIGHUP (reload signal) to nginx process:\n%v\n", err)
 	}
 	Stdoutf("reload signal has been successfully sent to nginx")
+}
+
+func (r *NginxRunner) rotateLogsNginx() {
+	Stdoutf("rotating nginx log")
+	unixTime := time.Now().Unix()
+	bakFile := fmt.Sprintf("%s.%d.bak", r.logFile, unixTime)
+	err := os.Rename(r.logFile, bakFile)
+	if err != nil {
+		Panicf("couldn't move nginx log file:\n%v\n", err)
+	}
+	Stdoutf("sending reopen logs signal to nginx (stdout or stderr fd open() errors are ok)")
+	err = r.nginxProc.Signal(syscall.SIGUSR1)
+	if err != nil {
+		Panicf("couldn't send SIGUSR1 (reopen logs signal) to nginx process:\n%v\n", err)
+	}
+	Stdoutf("reopen logs signal has been successfully sent to nginx")
 }
