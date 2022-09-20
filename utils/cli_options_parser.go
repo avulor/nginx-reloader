@@ -109,6 +109,10 @@ func (p *argParser) parseStart() {
 		p.parseCooldown()
 	case "--log-file":
 		p.parseLogFile()
+	case "--log-cooldowns":
+		p.parseLogCooldowns()
+	case "--log-max-size":
+		p.parseLogMaxSize()
 	case "--nginx-command":
 		p.parseNginxCommand()
 	default:
